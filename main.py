@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "").strip()
+
 app = FastAPI(title="Glam Orders API")
 
 app.add_middleware(
@@ -19,9 +23,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "supabase_url": "set" if SUPABASE_URL else "MISSING",
+        "service_key": "set" if SUPABASE_SERVICE_KEY else "MISSING",
+        "anon_key": "set" if SUPABASE_ANON_KEY else "MISSING",
+    }
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    raise RuntimeError(f"Missing Supabase env vars. URL={'set' if SUPABASE_URL else 'MISSING'}, KEY={'set' if SUPABASE_SERVICE_KEY else 'MISSING'}")
 
 supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
@@ -164,8 +176,3 @@ def get_stats(user=Depends(get_current_user)):
     shipped = sum(1 for o in orders if o.get("status") == "shipped")
     revenue = sum(float(o.get("amount") or 0) for o in orders if o.get("status") != "cancelled")
     return {"total": total, "pending": pending, "shipped": shipped, "revenue": revenue}
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
